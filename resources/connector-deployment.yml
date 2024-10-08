@@ -1,0 +1,38 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: assisted-migration-connector
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: assisted-migration-connector
+  template:
+    metadata:
+      labels:
+        app: assisted-migration-connector
+    spec:
+      containers:
+      - name: connector
+        image: docker.elastic.co/enterprise-search/elastic-connectors:8.15.0.0
+        command:
+        - /app/bin/elastic-ingest
+        - -c
+        - /config/config.yml
+        volumeMounts:
+        - mountPath: /certs
+          name: es-certs
+        - mountPath: /config
+          name: connector-config
+        resources:
+          limits:
+            cpu: 500m
+            memory: 256Mi
+      volumes:
+      - name: es-certs
+        secret:
+          secretName: elasticsearch-sample-es-http-certs-public
+      - name: connector-config
+        secret:
+          secretName: assisted-migration-connector-config

@@ -1,0 +1,29 @@
+apiVersion: kibana.k8s.elastic.co/v1
+kind: Kibana
+metadata:
+  name: kibana-sample
+spec:
+  version: 8.15.2
+  count: 1
+  elasticsearchRef:
+    name: "elasticsearch-sample"
+  podTemplate:
+    spec:
+      containers:
+      - name: kibana
+        resources:
+          limits:
+            memory: 1Gi
+            cpu: 1
+---
+apiVersion: route.openshift.io/v1
+kind: Route
+metadata:
+  name: kibana-sample
+spec:
+  tls:
+    termination: passthrough # Kibana is the TLS endpoint
+    insecureEdgeTerminationPolicy: Redirect
+  to:
+    kind: Service
+    name: kibana-sample-kb-http
