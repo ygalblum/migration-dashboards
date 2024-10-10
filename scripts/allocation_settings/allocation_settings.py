@@ -46,12 +46,12 @@ def _get_allocation_disk_params() -> dict[str] :
     params = {}
     for var, field in boolean_fields:
         val = os.getenv(var)
-        if val is not None:
+        if val:
             params[field] = val.lower() in TRUE_STRINGS
 
     for var, field in number_fields:
         val = os.getenv(var)
-        if val is not None:
+        if val:
             params[field] = val
 
     return params
