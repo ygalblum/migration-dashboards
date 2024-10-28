@@ -1,0 +1,75 @@
+---
+apiVersion: tekton.dev/v1
+kind: Pipeline
+metadata:
+  name: allocation-settings-pipeline
+spec:
+  params:
+  - name: elastic-instance-name
+    description: Name of the ElasticSearch Instance
+    default: elasticsearch-sample
+  - name: threshold-enabled
+    default: ""
+  tasks:
+  - name: clone-repo
+    taskRef:
+      name: git-clone
+      kind: ClusterTask
+    params:
+    - name: url
+      value: "https://github.com/ygalblum/migration-dashboards.git"
+    - name: revision
+      value: "main"
+    - name: depth
+      value: "1"
+    workspaces:
+    - name: output
+      workspace: shared-workspace
+
+  - name: run-python-script
+    runAfter:
+    - clone-repo
+    params:
+    - name: elastic-instance-name
+      value: $(params.elastic-instance-name)
+    - name: threshold-enabled
+      value: $(params.threshold-enabled)
+    taskSpec:
+      params:
+      - name: elastic-instance-name
+        description: Name of the ElasticSearch instance
+      - name: threshold-enabled
+        default: ""
+      steps:
+      - name: run-script
+        image: registry.access.redhat.com/ubi8/python-312:1-29
+        env:
+        - name: ELASTICSEARCH_URL
+          value: "https://$(params.elastic-instance-name)-es-http:9200"
+        - name: ELASTICSEARCH_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: $(params.elastic-instance-name)-es-elastic-user
+              key: elastic
+        - name: ELASTICSEARCH_CA_CERT
+          value: "/etc/certs/ca.crt"
+        - name: ALLOCATION_THRESHOLD_ENABLED
+          value: $(params.threshold-enabled)
+        volumeMounts:
+        - name: elastic-certs
+          mountPath: /etc/certs
+        script: |
+          cd $(workspaces.source.path)/scripts/allocation_settings
+          pip install -U pip
+          pip install -r requirements.txt
+          python allocation_settings.py
+      volumes:
+      - name: elastic-certs
+        secret:
+          secretName: $(params.elastic-instance-name)-es-http-certs-public
+    workspaces:
+    - name: source
+      workspace: shared-workspace
+
+  workspaces:
+  - name: shared-workspace

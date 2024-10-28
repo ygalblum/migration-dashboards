@@ -1,0 +1,20 @@
+apiVersion: tekton.dev/v1
+kind: PipelineRun
+metadata:
+  name: allocation-settings-pipeline-run-1
+spec:
+  pipelineRef:
+    name: allocation-settings-pipeline
+  params:
+  - name: elastic-instance-name
+    value: elasticsearch-sample
+  - name: threshold-enabled
+    value: "False"
+  workspaces:
+    - name: shared-workspace
+      volumeClaimTemplate:
+        spec:
+          accessModes: ["ReadWriteOnce"]
+          resources:
+            requests:
+              storage: 1Gi
