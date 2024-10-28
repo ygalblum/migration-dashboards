@@ -12,8 +12,6 @@ In the long run we should consider moving the deployment to the responsability o
 
 Install the operator based on their [documentation](https://www.elastic.co/guide/en/cloud-on-k8s/current/k8s-openshift.html).
 
-If we plan on runing on [cnv.engineering](https://console-openshift-console.apps.cnv2.engineering.redhat.com/), we will need its admin to install it.
-
 #### Installing ElasticSearch
 
 Deploy an `Elasticsearch` CRD
@@ -39,6 +37,8 @@ spec:
         - dns: elasticsearch-sample-elastic.apps.my-cluster.example.com
 ```
 
+See the [sample manifest](./resources/elasticsearch.yml)
+
 #### Installing Kibana
 Deploy an `Kibana` CRD
 
@@ -62,6 +62,8 @@ spec:
             memory: 1Gi
             cpu: 1
 ```
+
+See the [sample manifest](./resources/kibana.yml)
 
 #### Expose the Kibana Web Interface
 
@@ -90,16 +92,10 @@ However, when using NFS the size of the volume and its free space are the sizes 
 
 To avoid this error, either disable the protection or set the values to absolute sizes.
 
-#### K8S Job to set the values
+#### Set the values using a Tekton Pipeline
 
-The [configMap](./allocation-settings-config.yml) includes the requirements.txt and python script to set the values
-
-The [job](./allocation-settings-job.yml) includes the K8S Job to run the python script. The server parameters are set assuming the CR's name is `elasticsearch-sample`.
-You can set the following environment variables in the Job's container spec:
-- `ALLOCATION_THRESHOLD_ENABLED`: `true` or `false`
-- `ALLOCATION_WATERMARK_LOW`
-- `ALLOCATION_WATERMARK_HIGH`
-- `ALLOCATION_WATERMARK_FLOOD_STAGE`
+The [tekton pipeline](./tekton/allocation-settings/allocation-settings-pipeline.yml) may be used to disable the allocation threashold.
+See the [pipelinerun](./tekton/allocation-settings/allocation-settings-pipelinerun.yml) for reference
 
 ## Elastic PostgreSQL connector
 
@@ -178,3 +174,12 @@ POST /_security/api_key
 ```
 
 From the returned JSON, the field `encoded` should be used in the connector's configuration
+
+#### Tekton Pipeline
+
+The [tekton pipeline](./tekton/create-connector/pipeline.yml) may be used to create the connector and API key and save the connector configuration in a secret.
+See the [pipelinerun](./tekton/create-connector/pipelinerun.yml) for reference
+
+## Running the Connector
+
+See the [sample manifest](./resources/connector-deployment.yml)
