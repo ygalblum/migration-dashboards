@@ -1,4 +1,17 @@
-""" Create a ElasticSearch Connector """
+""" Create a ElasticSearch Connector
+Set the following Environment Variables
+ELASTICSEARCH_URL - URL of the elastic service
+ELASTICSEARCH_PASSWORD - Password of the `elastic` user
+ELASTICSEARCH_CERT_FINGERPRINT - Fingerprint of the server certificate (provide either this or ELASTICSEARCH_CA_CERT)
+ELASTICSEARCH_CA_CERT - Path to the server's CA certificate (provide either this or ELASTICSEARCH_CERT_FINGERPRINT)
+ELASTICSEARCH_CONNECTOR_ID - ID for the new connector
+ELASTICSEARCH_CONNECTOR_NAME - Name for the new connector
+ELASTICSEARCH_INDEX_NAME - Index for the new connector
+GEN_SECRET_NAMESPACE - Namespace of the secret to store the connector configuration
+GEN_SECRET_NAME - Name of the secret to store the connector configuration
+CONNECTOR_CA_CERTS_LOCATION - location of the elastic CA certificate in the connector container
+"""
+
 import base64
 import os
 
@@ -76,7 +89,11 @@ connectors:
     def run(self):
         """ Run the operation """
         # Make sure the connection to K8S is on before starting
-        config.load_kube_config()
+        try:
+            config.load_kube_config()
+        except config.config_exception.ConfigException:
+            config.load_incluster_config()
+
         self._elastic_client.connector.put(**self._connector_params)
         self._create_connector_config_secret(
             self._generate_connector_config(
