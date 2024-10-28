@@ -1,0 +1,115 @@
+---
+apiVersion: tekton.dev/v1
+kind: Pipeline
+metadata:
+  name: elastic-mysql-connector-config
+spec:
+  params:
+  - name: elastic-instance-name
+    description: Name of the ElasticSearch Instance
+  - name: connector-id
+    description: ID for the new connector
+  - name: connector-name
+    description: Name for the new connector
+  - name: index-name
+    description: Index for the new connector
+  - name: secret-namespace
+    description: Namespace of the secret to store the connector configuration
+  - name: secret-name
+    description: Name of the secret to store the connector configuration
+  - name: connector-ca-certs-location
+    description: location of the elastic CA certificate in the connector container
+
+  tasks:
+  - name: clone-repo
+    taskRef:
+      name: git-clone
+      kind: ClusterTask
+    params:
+    - name: url
+      value: "https://github.com/ygalblum/migration-dashboards.git"
+    - name: revision
+      value: main
+    - name: depth
+      value: "1"
+    workspaces:
+    - name: output
+      workspace: shared-workspace
+
+  - name: run-python-script
+    runAfter:
+    - clone-repo
+    params:
+    - name: elastic-instance-name
+      value: $(params.elastic-instance-name)
+    - name: connector-id
+      value: $(params.connector-id)
+    - name: connector-name
+      value: $(params.connector-name)
+    - name: index-name
+      value: $(params.index-name)
+    - name: secret-namespace
+      value: $(params.secret-namespace)
+    - name: secret-name
+      value: $(params.secret-name)
+    - name: connector-ca-certs-location
+      value: $(params.connector-ca-certs-location)
+    taskSpec:
+      params:
+      - name: elastic-instance-name
+        description: Name of the ElasticSearch instance
+      - name: connector-id
+        description: ID for the new connector
+      - name: connector-name
+        description: Name for the new connector
+      - name: index-name
+        description: Index for the new connector
+      - name: secret-namespace
+        description: Namespace of the secret to store the connector configuration
+      - name: secret-name
+        description: Name of the secret to store the connector configuration
+      - name: connector-ca-certs-location
+        description: location of the elastic CA certificate in the connector container
+      steps:
+      - name: run-script
+        image: registry.access.redhat.com/ubi8/python-312:1-29
+        env:
+        - name: ELASTICSEARCH_URL
+          value: "https://$(params.elastic-instance-name)-es-http:9200"
+        - name: ELASTICSEARCH_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: $(params.elastic-instance-name)-es-elastic-user
+              key: elastic
+        - name: ELASTICSEARCH_CA_CERT
+          value: "/etc/certs/ca.crt"
+        - name: ELASTICSEARCH_CONNECTOR_ID
+          value: $(params.connector-id)
+        - name: ELASTICSEARCH_CONNECTOR_NAME
+          value: $(params.connector-name)
+        - name: ELASTICSEARCH_INDEX_NAME
+          value: $(params.index-name)
+        - name: GEN_SECRET_NAMESPACE
+          value: $(params.secret-namespace)
+        - name: GEN_SECRET_NAME
+          value: $(params.secret-name)
+        - name: CONNECTOR_CA_CERTS_LOCATION
+          value: $(params.connector-ca-certs-location)
+        volumeMounts:
+        - name: elastic-certs
+          mountPath: /etc/certs
+        script: |
+          cd $(workspaces.source.path)/scripts/connector
+          pip install -U pip
+          pip install -r requirements.txt
+          python create_connector.py
+      volumes:
+      - name: elastic-certs
+        secret:
+          secretName: $(params.elastic-instance-name)-es-http-certs-public
+    workspaces:
+    - name: source
+      workspace: shared-workspace
+
+  workspaces:
+  - name: shared-workspace
